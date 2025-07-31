@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
@@ -16,54 +16,104 @@ function App() {
   const [user, setUser] = useState<{ email: string; role: string } | null>(null);
   const [session, setSession] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(null);
-  const [warningTimer, setWarningTimer] = useState<NodeJS.Timeout | null>(null);
-
-  // Reset inactivity timer function
-  const resetInactivityTimer = useCallback(() => {
-    // Clear existing timers
-    if (inactivityTimer) clearTimeout(inactivityTimer);
-    if (warningTimer) clearTimeout(warningTimer);
-    
-    // Set warning timer for 2.5 minutes (150000 ms)
-    const newWarningTimer = setTimeout(() => {
-      toast('You will be logged out due to inactivity in 30 seconds', { 
-        icon: '⚠️',
-        duration: 30000
-      });
-    }, 150000);
-    
-    // Set logout timer for 3 minutes (180000 ms)
-    const newInactivityTimer = setTimeout(() => {
-      handleLogout();
-      toast('You were automatically logged out due to inactivity', { 
-        icon: '⏳',
-        duration: 5000
-      });
-    }, 180000);
-    
-    setWarningTimer(newWarningTimer);
-    setInactivityTimer(newInactivityTimer);
-  }, [inactivityTimer, warningTimer]);
+  
+  // Use useRef to persist timer references across renders
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningShownRef = useRef(false);
+  const lastActivityRef = useRef(Date.now());
 
   // Handle logout function
   const handleLogout = useCallback(async () => {
+    console.log('Logging out due to inactivity...');
+    
+    // Clear timers first
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+    warningShownRef.current = false;
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success('Logged out successfully');
+      toast.success('Logged out due to inactivity');
       setUser(null);
       setSession(null);
     }
-    // Clear timers on logout
-    if (inactivityTimer) clearTimeout(inactivityTimer);
-    if (warningTimer) clearTimeout(warningTimer);
-  }, [inactivityTimer, warningTimer]);
+    toast.dismiss();
+  }, []);
+
+  // Clear all timers
+  const clearTimers = useCallback(() => {
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+      warningTimerRef.current = null;
+    }
+    warningShownRef.current = false;
+    toast.dismiss('inactivity-warning');
+  }, []);
+
+  // Reset inactivity timer function
+  const resetInactivityTimer = useCallback(() => {
+    // Don't set timers if not logged in
+    if (!session) return;
+    
+    console.log('Resetting inactivity timer...');
+    lastActivityRef.current = Date.now();
+    
+    // Clear existing timers and toasts
+    clearTimers();
+
+    // Set warning timer for 2.5 minutes (150000 ms)
+    warningTimerRef.current = setTimeout(() => {
+      console.log('Showing inactivity warning...');
+      if (!warningShownRef.current && session) {
+        toast('You will be logged out due to inactivity in 30 seconds', { 
+          icon: '⚠️',
+          id: 'inactivity-warning',
+          duration: 30000
+        });
+        warningShownRef.current = true;
+      }
+    }, 150000); // 2.5 minutes
+    
+    // Set logout timer for 3 minutes (180000 ms)
+    inactivityTimerRef.current = setTimeout(() => {
+      console.log('Auto-logout timer triggered');
+      if (session) {
+        handleLogout();
+      }
+    }, 180000); // 3 minutes
+    
+  }, [session, handleLogout, clearTimers]);
+
+  // Throttled activity handler to prevent excessive timer resets
+  const lastResetRef = useRef(0);
+  const handleActivity = useCallback(() => {
+    const now = Date.now();
+    // Only reset timer if more than 1 second has passed since last reset
+    if (now - lastResetRef.current > 1000) {
+      lastResetRef.current = now;
+      resetInactivityTimer();
+    }
+  }, [resetInactivityTimer]);
 
   useEffect(() => {
+    console.log('Setting up auth and activity listeners...');
+    
     // Check existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session ? 'Found session' : 'No session');
       setSession(session);
       setAuthChecked(true);
       
@@ -73,12 +123,13 @@ function App() {
           role: 'administrator'
         });
         // Start inactivity timer when session exists
-        resetInactivityTimer();
+        setTimeout(() => resetInactivityTimer(), 100);
       }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state change:', event, session ? 'Session exists' : 'No session');
       setSession(session);
       setAuthChecked(true);
       
@@ -88,43 +139,45 @@ function App() {
           role: 'administrator'
         });
         // Reset timer on auth state change (login)
-        resetInactivityTimer();
+        setTimeout(() => resetInactivityTimer(), 100);
       } else {
         setUser(null);
-        // Clear timers on logout
-        if (inactivityTimer) clearTimeout(inactivityTimer);
-        if (warningTimer) clearTimeout(warningTimer);
+        clearTimers();
       }
     });
 
-    // Set up activity event listeners if session exists
-    if (session) {
-      const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-      
-      const handleActivity = () => {
-        resetInactivityTimer();
-      };
+    return () => {
+      console.log('Cleaning up auth subscription...');
+      subscription.unsubscribe();
+      clearTimers();
+    };
+  }, []); // Remove dependencies to prevent recreation
 
-      events.forEach(event => {
-        window.addEventListener(event, handleActivity);
-      });
+  // Separate effect for activity listeners
+  useEffect(() => {
+    if (!session) return;
 
-      return () => {
-        subscription.unsubscribe();
-        events.forEach(event => {
-          window.removeEventListener(event, handleActivity);
-        });
-        if (inactivityTimer) clearTimeout(inactivityTimer);
-        if (warningTimer) clearTimeout(warningTimer);
-      };
-    }
+    console.log('Setting up activity listeners...');
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, { passive: true });
+    });
 
     return () => {
-      subscription.unsubscribe();
-      if (inactivityTimer) clearTimeout(inactivityTimer);
-      if (warningTimer) clearTimeout(warningTimer);
+      console.log('Cleaning up activity listeners...');
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity);
+      });
     };
-  }, [resetInactivityTimer, inactivityTimer, warningTimer, session]);
+  }, [session, handleActivity]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearTimers();
+    };
+  }, [clearTimers]);
 
   const renderContent = () => {
     if (!authChecked) {

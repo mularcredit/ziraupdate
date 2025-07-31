@@ -83,7 +83,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               className="h-10 mx-auto mb-4" 
             />
             <h1 className="text-3xl font-bold text-green-700 mb-2">Zira HR</h1>
-            <p className="text-gray-600">Modern Human Resources Management</p>
+            <p className="text-gray-600">smiles start here</p>
           </div>
 
           <div className="text-center mb-8">

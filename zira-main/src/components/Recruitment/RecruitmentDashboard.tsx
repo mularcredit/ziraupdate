@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -13,8 +13,20 @@ import {
   X, 
   Check, 
   UserPlus,
-  Download 
+  Download,
+  User,
+  MapPin,
+  GraduationCap,
+  Code,
+  FileText
 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 // Employee Type and Department Data
 const employeeTypes = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Intern'];
 const departments = ['All Departments', 'Finance', 'HR', 'IT', 'Operations', 'Marketing', 'Sales', 'Customer Service', 'Engineering'];
@@ -39,15 +51,6 @@ const jobPositions = [
   { id: '6', title: 'Operations Supervisor', department: 'Operations', type: 'Full-time', branch: 'nakuru', status: 'Urgent', applications: 7 },
   { id: '7', title: 'Accountant', department: 'Finance', type: 'Full-time', branch: 'nairobi', status: 'Normal', applications: 9 },
   { id: '8', title: 'IT Support', department: 'IT', type: 'Contract', branch: 'kisumu', status: 'Critically Needed', applications: 11 },
-];
-
-// Application Data
-const applications = [
-  { id: '1', name: 'John Kariuki', position: 'Software Developer', branch: 'nairobi', status: 'New', date: '2023-05-15', experience: '3 years' },
-  { id: '2', name: 'Mary Wanjiku', position: 'HR Manager', branch: 'nairobi', status: 'Interview', date: '2023-05-10', experience: '5 years' },
-  { id: '3', name: 'David Kimani', position: 'Sales Representative', branch: 'kisumu', status: 'New', date: '2023-05-18', experience: '2 years' },
-  { id: '4', name: 'Grace Akinyi', position: 'Customer Support', branch: 'eldoret', status: 'Rejected', date: '2023-05-05', experience: '1 year' },
-  { id: '5', name: 'Samuel Kiptoo', position: 'Marketing Intern', branch: 'mombasa', status: 'Shortlisted', date: '2023-05-20', experience: 'Fresh graduate' },
 ];
 
 const GlowButton = ({ 
@@ -108,6 +111,217 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+const DetailItem = ({ 
+  label, 
+  value, 
+  isTextArea = false 
+}: { 
+  label: string; 
+  value: string | null; 
+  isTextArea?: boolean 
+}) => {
+  if (!value) return null;
+  
+  return (
+    <div className="space-y-1">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      {isTextArea ? (
+        <textarea 
+          readOnly 
+          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm h-24"
+          value={value}
+        />
+      ) : (
+        <input 
+          type="text" 
+          readOnly 
+          className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" 
+          value={value} 
+        />
+      )}
+    </div>
+  );
+};
+
+const ApplicationDetailModal = ({ 
+  application, 
+  onClose 
+}: { 
+  application: any | null; 
+  onClose: () => void 
+}) => {
+  if (!application) return null;
+
+  return (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-semibold text-gray-900">
+          Application from {application.first_name} {application.last_name}
+        </h3>
+        <button 
+          onClick={onClose}
+          className="text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Personal Information */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <User className="w-5 h-5 text-blue-500" />
+            Personal Information
+          </h4>
+          <div className="space-y-3">
+            <DetailItem label="Full Name" value={`${application.first_name} ${application.last_name}`} />
+            <DetailItem label="Email" value={application.email} />
+            <DetailItem label="Phone" value={application.phone} />
+            <DetailItem label="ID Number" value={application.id_number} />
+            <DetailItem label="Nationality" value={application.nationality} />
+          </div>
+        </div>
+        
+        {/* Address Information */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-blue-500" />
+            Address Information
+          </h4>
+          <div className="space-y-3">
+            <DetailItem label="Address" value={application.address} isTextArea />
+            <DetailItem label="County" value={application.county} />
+            <DetailItem label="Constituency" value={application.constituency} />
+            <DetailItem label="Preferred Location" value={application.preferred_location} />
+          </div>
+        </div>
+        
+        {/* Education */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <GraduationCap className="w-5 h-5 text-blue-500" />
+            Education
+          </h4>
+          <div className="space-y-3">
+            <DetailItem label="University" value={application.university} />
+            <DetailItem label="Education Level" value={application.education} />
+            <DetailItem label="Graduation Year" value={application.graduation_year || 'N/A'} />
+          </div>
+        </div>
+        
+        {/* Work Experience */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-blue-500" />
+            Work Experience
+          </h4>
+          <div className="space-y-3">
+            <DetailItem label="Previous Company" value={application.previous_company} />
+            <DetailItem label="Previous Role" value={application.previous_role} />
+            <DetailItem label="Work Experience" value={application.work_experience} isTextArea />
+            <DetailItem label="Previous Salary" value={application.previous_salary} />
+            <DetailItem label="Expected Salary" value={application.expected_salary} />
+          </div>
+        </div>
+        
+        {/* Skills & Languages */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <Code className="w-5 h-5 text-blue-500" />
+            Skills & Languages
+          </h4>
+          <div className="space-y-3">
+            <DetailItem label="Skills" value={application.skills} isTextArea />
+            <DetailItem label="Languages" value={application.languages} />
+            <DetailItem label="Markets Worked" value={application.markets_worked || 'N/A'} />
+          </div>
+        </div>
+        
+        {/* Application Materials */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h4 className="font-medium text-gray-900 text-lg mb-3 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-500" />
+            Application Materials
+          </h4>
+          <div className="space-y-3">
+            <DetailItem label="Cover Letter" value={application.cover_letter} isTextArea />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Resume</label>
+              <a 
+                href={application.resume_file_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {application.resume_file_name || 'Download Resume'}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-8 pt-6 border-t border-gray-200 flex justify-end gap-3">
+        <GlowButton 
+          variant="secondary"
+          size="sm"
+          onClick={onClose}
+          className="px-4"
+        >
+          Close
+        </GlowButton>
+        <GlowButton 
+          icon={Check}
+          size="sm"
+          className="px-4"
+        >
+          Shortlist Candidate
+        </GlowButton>
+      </div>
+    </div>
+  </div>
+);
+};
+
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  isCount = false,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  color: string;
+  isCount?: boolean;
+}) {
+  const colorClasses = {
+    red: 'bg-red-100 text-red-600',
+    orange: 'bg-orange-100 text-orange-600',
+    blue: 'bg-blue-100 text-blue-600',
+    green: 'bg-green-100 text-green-600',
+    purple: 'bg-purple-100 text-purple-600'
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className={`p-2 rounded-lg ${colorClasses[color as keyof typeof colorClasses]}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <p className="text-gray-600 text-xs font-semibold uppercase tracking-wide">{label}</p>
+        <p className="text-gray-900 text-xl font-bold">
+          {isCount ? value : value.toLocaleString()}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function RecruitmentDashboard() {
   const [selectedTab, setSelectedTab] = useState('positions');
   const [selectedBranch, setSelectedBranch] = useState('all');
@@ -117,6 +331,26 @@ export default function RecruitmentDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewPositionModal, setShowNewPositionModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedApplication, setSelectedApplication] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('*');
+      
+      if (!error) {
+        setApplications(data);
+      } else {
+        console.error('Error fetching applications:', error);
+      }
+      setLoading(false);
+    };
+
+    fetchApplications();
+  }, []);
 
   // Filter positions based on selections
   const filteredPositions = jobPositions.filter(position => {
@@ -131,14 +365,17 @@ export default function RecruitmentDashboard() {
 
   // Filter applications based on selections
   const filteredApplications = applications.filter(application => {
-    const matchesBranch = selectedBranch === 'all' || application.branch === selectedBranch;
-    const matchesPosition = selectedDepartment === 'All Departments' || 
-      jobPositions.find(p => p.title === application.position)?.department === selectedDepartment;
+    const matchesBranch = selectedBranch === 'all' || 
+      application.preferred_location?.toLowerCase().includes(selectedBranch.toLowerCase());
+    const matchesDepartment = selectedDepartment === 'All Departments' || 
+      application.department?.toLowerCase().includes(selectedDepartment.toLowerCase());
     const matchesStatus = selectedStatus === 'All Statuses' || application.status === selectedStatus;
-    const matchesSearch = application.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      application.position.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      `${application.first_name} ${application.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      application.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      application.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesBranch && matchesPosition && matchesStatus && matchesSearch;
+    return matchesBranch && matchesDepartment && matchesStatus && matchesSearch;
   });
 
   // Count positions by status
@@ -498,33 +735,46 @@ export default function RecruitmentDashboard() {
               <tbody>
                 {filteredApplications.map((application) => {
                   const branch = branches.find(b => b.id === application.branch);
-                  const position = jobPositions.find(p => p.title === application.position);
                   return (
                     <tr key={application.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-4 px-4">
                         <div className="space-y-1">
-                          <p className="text-gray-900 font-semibold">{application.name}</p>
+                          <p className="text-gray-900 font-semibold">
+                            {application.first_name} {application.last_name}
+                          </p>
+                          <p className="text-gray-500 text-xs">{application.email}</p>
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="text-gray-700">{application.position}</p>
+                        <p className="text-gray-700">{application.position || 'N/A'}</p>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="text-gray-700">{branch?.name}</p>
+                        <p className="text-gray-700">{application.preferred_location || 'N/A'}</p>
                       </td>
                       <td className="py-4 px-4">
-                        <p className="text-gray-700">{application.experience}</p>
+                        <p className="text-gray-700">{application.work_experience || 'N/A'}</p>
                       </td>
                       <td className="py-4 px-4">
-                        <StatusBadge status={application.status} />
+                        <StatusBadge status={application.status || 'New'} />
                       </td>
                       <td className="py-4 px-4">
-                        <p className="text-gray-700">{application.date}</p>
+                        <p className="text-gray-700">
+                          {new Date(application.created_at).toLocaleDateString()}
+                        </p>
                       </td>
                       <td className="py-4 px-4">
                         <div className="flex justify-center gap-1">
-                          <GlowButton variant="secondary" icon={Edit} size="sm">Review</GlowButton>
-                          <GlowButton variant="secondary" icon={Briefcase} size="sm">Schedule</GlowButton>
+                          <GlowButton 
+                            variant="secondary" 
+                            icon={Edit} 
+                            size="sm"
+                            onClick={() => setSelectedApplication(application)}
+                          >
+                            Review
+                          </GlowButton>
+                          <GlowButton variant="secondary" icon={Briefcase} size="sm">
+                            Schedule
+                          </GlowButton>
                         </div>
                       </td>
                     </tr>
@@ -633,44 +883,14 @@ export default function RecruitmentDashboard() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function SummaryCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-  isCount = false,
-}: {
-  label: string;
-  value: number;
-  icon: any;
-  color: string;
-  isCount?: boolean;
-}) {
-  const colorClasses = {
-    red: 'bg-red-100 text-red-600',
-    orange: 'bg-orange-100 text-orange-600',
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600'
-  };
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2 rounded-lg ${colorClasses[color as keyof typeof colorClasses]}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-      </div>
-      <div className="space-y-1">
-        <p className="text-gray-600 text-xs font-semibold uppercase tracking-wide">{label}</p>
-        <p className="text-gray-900 text-xl font-bold">
-          {isCount ? value : value.toLocaleString()}
-        </p>
-      </div>
+      {/* Application Detail Modal */}
+      {selectedApplication && (
+        <ApplicationDetailModal 
+          application={selectedApplication} 
+          onClose={() => setSelectedApplication(null)} 
+        />
+      )}
     </div>
   );
 }
