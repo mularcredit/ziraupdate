@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
+
 // Validate environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -17,6 +18,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true
   }
 });
+
 // Kenyan tax calculations
 // Kenyan tax constants
 const TAX_BRACKETS = [

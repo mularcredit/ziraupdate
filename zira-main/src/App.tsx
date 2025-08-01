@@ -81,7 +81,7 @@ function App() {
         toast('You will be logged out due to inactivity in 30 seconds', { 
           icon: '⚠️',
           id: 'inactivity-warning',
-          duration: 30000
+          duration: 3000000
         });
         warningShownRef.current = true;
       }
